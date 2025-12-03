@@ -1,0 +1,5 @@
+<!-- public/vite.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 220 220" fill="none">
+    <circle cx="110" cy="110" r="110" fill="#646CFF"/>
+    <path d="M36 156L110 44l74 112H36z" fill="white"/>
+</svg>

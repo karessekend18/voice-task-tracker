@@ -1,6 +1,7 @@
+// src/components/TaskFilters.tsx
 import { TaskStatus, TaskPriority, STATUS_CONFIG, PRIORITY_CONFIG } from '@/types/task';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -8,19 +9,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, X, LayoutGrid, List } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
 
 interface TaskFiltersProps {
   search: string;
   status?: TaskStatus;
   priority?: TaskPriority;
   viewMode: 'board' | 'list';
+
   onSearchChange: (value: string) => void;
-  onStatusChange: (value: TaskStatus | undefined) => void;
-  onPriorityChange: (value: TaskPriority | undefined) => void;
+  onStatusChange: (value?: TaskStatus) => void;
+  onPriorityChange: (value?: TaskPriority) => void;
   onViewModeChange: (mode: 'board' | 'list') => void;
   onClearFilters: () => void;
+
+  // NEW for due date filtering
+  dueDateFrom?: Date;
+  dueDateTo?: Date;
+  onDueDateRangeChange: (from?: Date, to?: Date) => void;
 }
 
 export function TaskFilters({
@@ -33,93 +48,160 @@ export function TaskFilters({
   onPriorityChange,
   onViewModeChange,
   onClearFilters,
+  dueDateFrom,
+  dueDateTo,
+  onDueDateRangeChange,
 }: TaskFiltersProps) {
-  const hasActiveFilters = search || status || priority;
-  
+  const currentRange: DateRange = {
+    from: dueDateFrom,
+    to: dueDateTo,
+  };
+
+  const hasDateFilter = !!dueDateFrom || !!dueDateTo;
+
+  const dateLabel = (() => {
+    if (dueDateFrom && dueDateTo) {
+      return `${format(dueDateFrom, 'MMM d, yyyy')} – ${format(
+        dueDateTo,
+        'MMM d, yyyy'
+      )}`;
+    }
+    if (dueDateFrom) {
+      return `From ${format(dueDateFrom, 'MMM d, yyyy')}`;
+    }
+    if (dueDateTo) {
+      return `Until ${format(dueDateTo, 'MMM d, yyyy')}`;
+    }
+    return 'Any due date';
+  })();
+
+  const handleDateSelect = (range: DateRange | undefined) => {
+    const from = range?.from;
+    const to = range?.to;
+    onDueDateRangeChange(from ?? undefined, to ?? undefined);
+  };
+
+  const handleClearDates = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDueDateRangeChange(undefined, undefined);
+  };
+
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-      {/* Search */}
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      {/* Left: Search + basic filters */}
+      <div className="flex flex-1 flex-wrap items-center gap-2">
         <Input
+          placeholder="Search by title or description..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search tasks..."
-          className="pl-10 bg-secondary/50"
+          className="w-full max-w-xs bg-secondary/50"
         />
-        {search && (
-          <Button
-            variant="ghost"
-            size="iconSm"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-            onClick={() => onSearchChange('')}
-          >
-            <X className="w-3.5 h-3.5" />
-          </Button>
-        )}
+
+        <Select
+          value={status ?? '__all__'}
+          onValueChange={(val) => {
+            if (val === '__all__') {
+              onStatusChange(undefined);
+            } else {
+              onStatusChange(val as TaskStatus);
+            }
+          }}
+        >
+          <SelectTrigger className="w-[130px] bg-secondary/50">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All statuses</SelectItem>
+            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+              <SelectItem key={key} value={key}>
+                {config.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+
+        <Select
+          value={priority ?? '__all__'}
+          onValueChange={(val) => {
+            if (val === '__all__') {
+              onPriorityChange(undefined);
+            } else {
+              onPriorityChange(val as TaskPriority);
+            }
+          }}
+        >
+          <SelectTrigger className="w-[130px] bg-secondary/50">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All priorities</SelectItem>
+            {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
+              <SelectItem key={key} value={key}>
+                {config.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+
+        {/* NEW: Due date range filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'justify-start bg-secondary/50 text-left text-sm font-normal',
+                hasDateFilter ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              <span className="truncate max-w-[180px]">{dateLabel}</span>
+              {hasDateFilter && (
+                <X
+                  className="ml-2 h-3 w-3 text-muted-foreground hover:text-foreground"
+                  onClick={handleClearDates}
+                />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={currentRange}
+              onSelect={handleDateSelect}
+              numberOfMonths={2}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
-      
-      {/* Status Filter */}
-      <Select
-        value={status || 'all'}
-        onValueChange={(value) => onStatusChange(value === 'all' ? undefined : value as TaskStatus)}
-      >
-        <SelectTrigger className="w-full sm:w-[140px] bg-secondary/50">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Status</SelectItem>
-          {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-            <SelectItem key={key} value={key}>
-              {config.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      
-      {/* Priority Filter */}
-      <Select
-        value={priority || 'all'}
-        onValueChange={(value) => onPriorityChange(value === 'all' ? undefined : value as TaskPriority)}
-      >
-        <SelectTrigger className="w-full sm:w-[140px] bg-secondary/50">
-          <SelectValue placeholder="Priority" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Priority</SelectItem>
-          {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
-            <SelectItem key={key} value={key}>
-              {config.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      
-      {/* Clear Filters */}
-      {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={onClearFilters}>
-          <X className="w-4 h-4 mr-1" />
-          Clear
-        </Button>
-      )}
-      
-      {/* View Toggle */}
-      <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
-        <Button
-          variant={viewMode === 'board' ? 'secondary' : 'ghost'}
-          size="iconSm"
-          onClick={() => onViewModeChange('board')}
-          className={cn(viewMode === 'board' && 'bg-card shadow-sm')}
-        >
-          <LayoutGrid className="w-4 h-4" />
-        </Button>
-        <Button
-          variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-          size="iconSm"
-          onClick={() => onViewModeChange('list')}
-          className={cn(viewMode === 'list' && 'bg-card shadow-sm')}
-        >
-          <List className="w-4 h-4" />
+
+      {/* Right: view toggle + clear */}
+      <div className="flex items-center gap-2">
+        <div className="inline-flex rounded-md border border-border bg-background/60 p-0.5">
+          <Button
+            type="button"
+            variant={viewMode === 'board' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => onViewModeChange('board')}
+          >
+            Board
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => onViewModeChange('list')}
+          >
+            List
+          </Button>
+        </div>
+
+        <Button type="button" variant="ghost" size="sm" onClick={onClearFilters}>
+          Clear filters
         </Button>
       </div>
     </div>

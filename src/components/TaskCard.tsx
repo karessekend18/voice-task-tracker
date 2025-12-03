@@ -13,27 +13,38 @@ interface TaskCardProps {
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
-export function TaskCard({ task, onEdit, onDelete, isDragging, dragHandleProps }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  isDragging,
+  dragHandleProps,
+}: TaskCardProps) {
   const priorityConfig = PRIORITY_CONFIG[task.priority];
-  
+
   const formatDueDate = (date: Date) => {
     const d = new Date(date);
     if (isToday(d)) return 'Today';
     if (isTomorrow(d)) return 'Tomorrow';
     return format(d, 'MMM d');
   };
-  
-  const isDueDatePast = task.dueDate && isPast(new Date(task.dueDate)) && task.status !== 'done';
-  
+
+  const hasDueDate = !!task.dueDate;
+  const due = hasDueDate ? new Date(task.dueDate!) : null;
+
+  const isOverdue =
+    !!due && isPast(due) && !isToday(due) && task.status !== 'done';
+  const isDueToday = !!due && isToday(due) && task.status !== 'done';
+
   const priorityVariant = task.priority as 'urgent' | 'high' | 'medium' | 'low';
-  
+
   return (
     <div
       className={cn(
-        "group glass rounded-lg p-4 cursor-pointer transition-all duration-200",
-        "hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5",
-        isDragging && "opacity-50 shadow-2xl rotate-2",
-        "animate-scale-in"
+        'group glass rounded-lg p-4 cursor-pointer transition-all duration-200',
+        'hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5',
+        isDragging && 'opacity-50 shadow-2xl rotate-2',
+        'animate-scale-in'
       )}
       onClick={() => onEdit(task)}
     >
@@ -45,43 +56,81 @@ export function TaskCard({ task, onEdit, onDelete, isDragging, dragHandleProps }
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="font-medium text-foreground truncate">{task.title}</h3>
+            <div className="flex flex-col gap-1 min-w-0">
+              <h3 className="font-medium text-foreground truncate">
+                {task.title}
+              </h3>
+              {/* Overdue / Today badges */}
+              {hasDueDate && (
+                <div className="flex flex-wrap items-center gap-1">
+                  {isOverdue && (
+                    <Badge
+                      variant="outline"
+                      className="border-destructive/40 text-destructive bg-destructive/5 text-[10px] uppercase tracking-wide"
+                    >
+                      Overdue
+                    </Badge>
+                  )}
+                  {isDueToday && !isOverdue && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-400 text-amber-700 bg-amber-50 text-[10px] uppercase tracking-wide"
+                    >
+                      Due Today
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+
             <Badge variant={priorityVariant} className="shrink-0">
               {priorityConfig.label}
             </Badge>
           </div>
-          
+
           {task.description && (
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
               {task.description}
             </p>
           )}
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {task.dueDate && (
-                <div className={cn(
-                  "flex items-center gap-1.5 text-xs",
-                  isDueDatePast ? "text-destructive" : "text-muted-foreground"
-                )}>
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>{formatDueDate(task.dueDate)}</span>
-                </div>
-              )}
-              {task.dueDate && (
-                <div className={cn(
-                  "flex items-center gap-1.5 text-xs",
-                  isDueDatePast ? "text-destructive" : "text-muted-foreground"
-                )}>
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{format(new Date(task.dueDate), 'h:mm a')}</span>
-                </div>
+              {hasDueDate && due && (
+                <>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1.5 text-xs',
+                      isOverdue
+                        ? 'text-destructive font-medium'
+                        : isDueToday
+                        ? 'text-amber-700 font-medium'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{formatDueDate(due)}</span>
+                  </div>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1.5 text-xs',
+                      isOverdue
+                        ? 'text-destructive'
+                        : isDueToday
+                        ? 'text-amber-700'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{format(due, 'h:mm a')}</span>
+                  </div>
+                </>
               )}
             </div>
-            
+
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <Button
                 variant="ghost"

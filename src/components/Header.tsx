@@ -25,7 +25,7 @@ export function Header() {
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" asChild>
                 <a
-                  href="https://github.com"
+                  href="https://github.com/karessekend18/voice-task-tracker"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
